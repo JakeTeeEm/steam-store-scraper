@@ -65,43 +65,49 @@ async function extractGameInformationFromGameId(id) {
             return res.json();
         })
         .then(async data => {
-            data = data[id].data;
-            // console.log(data);
-
-            info = {
-                id: data.steam_appid,
-                name: data.name,
-                description: data.short_description,
-                image: data.header_image,
-                developers: data.developers,
-                publishers: data.publishers,
-                release_date: data.release_date
-            }
-
-            // Check for price
-            if (data.price_overview !== undefined) {
-                data.price = data.price_overview.final_formatted;
-            }
-
-            // Check for EA
-            data.genres.forEach(async item => {
-                if (item.id === 70) {
-                    info.isEA = true;
-                } else {
-                    info.isEA = false;
+            try {
+                data = data[id].data;
+                // console.log(data);
+    
+                info = {
+                    id: data.steam_appid,
+                    name: data.name,
+                    description: data.short_description,
+                    image: data.header_image,
+                    developers: data.developers,
+                    publishers: data.publishers,
+                    release_date: data.release_date
                 }
-            });
-
-            // Check for DLC
-            data.categories.forEach(async item => {
-                if (item.id === 21) {
-                    info.isDLC = true;
-                } else {
-                    info.isDLC = false;
+    
+                // Check for price
+                if (data.price_overview !== undefined) {
+                    data.price = data.price_overview.final_formatted;
                 }
-            });
-
-            return info;
+    
+                // Check for EA
+                data.genres.forEach(async item => {
+                    if (item.id === 70) {
+                        info.isEA = true;
+                    } else {
+                        info.isEA = false;
+                    }
+                });
+    
+                // Check for DLC
+                data.categories.forEach(async item => {
+                    if (item.id === 21) {
+                        info.isDLC = true;
+                    } else {
+                        info.isDLC = false;
+                    }
+                });
+    
+                return info;
+            } catch(err) {
+                console.log(err);
+                
+                return null;
+            }
         })
         .catch(err => console.log(err));
 
@@ -187,7 +193,7 @@ async function extractGameInformationFromGameId(id) {
         const rawSavedIdFromFile = fs.readFileSync(`./${savedGamesById}.json`, err => console.log(err));
         const savedIdFromFile = await JSON.parse(rawSavedIdFromFile);
 
-        Object.keys(savedIdFromFile.gamesById).forEach(async item => {
+        Object.keys(savedIdFromFile).forEach(async item => {
             gamesById[item] = 'From File';
         });
     } catch (err) {
@@ -215,6 +221,7 @@ async function extractGameInformationFromGameId(id) {
     }
 
 
+while (true) {
     const browser = await puppeteer.launch({headless: 'new'});
     try {
         const page = await browser.newPage();
@@ -223,7 +230,7 @@ async function extractGameInformationFromGameId(id) {
 
         
         // Store list of vidya games
-        for (pageNumber = 1; pageNumber < maxPageNumber; pageNumber++) {
+        for (pageNumber = 1; pageNumber <= maxPageNumber; pageNumber++) {
             let url = `${urlSteamStore}&page=${pageNumber}`;
             await page.goto(url);
 
@@ -288,7 +295,7 @@ async function extractGameInformationFromGameId(id) {
                 gamesById[item.id] = item.name;
             }
         });
-        await saveToFile(gamesById, 'savedGamesById');
+        await saveToFile({gamesById: gamesById}, 'savedGamesById');
 
         console.log(`Games: `, games, `gamesById: `, gamesById);
 
@@ -298,4 +305,5 @@ async function extractGameInformationFromGameId(id) {
     finally {
         await browser?.close().catch(err => console.log(err));
     }
+}
 })();
