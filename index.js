@@ -111,7 +111,7 @@ async function extractGameInformationFromGameId(id) {
         })
         .catch(err => console.log(err));
 
-        console.log(info);
+        // console.log(info);
         return info;
 
     // OUTDATED WEBSCRAPING VERSION
@@ -240,7 +240,14 @@ while (true) {
                 console.log('\x1b[32m', `${item}\x1b[0m`);
 
                 if (!gamesById[item]) {
-                    queueGameDetails.push(item);
+                    let dupe = false;
+
+                    queueGameDetails.forEach(element => {
+                        if (element === item) dupe = true;
+                    });
+
+
+                    if (!dupe) queueGameDetails.push(item);
                 } else {
                     console.log('\x1b[31m', `\tApplication id ${item}\x1b[0m from ${url}\x1b[0m is already saved!`, '\x1b[0m');
                 }
@@ -253,10 +260,11 @@ while (true) {
                 })
             }
 
+            await saveToFile({queueGameDetails}, 'steamAppQueue');
+
+
             await sleep(1500);
-        }
-        console.log('\x1b[90m', `Finished saving ids...`, '\x1b[0m', queueGameDetails);
-        await saveToFile({queueGameDetails}, 'steamAppQueue');
+        console.log('\x1b[90m', `Finished saving ids on page ${pageNumber} (max pages : ${maxPageNumber})...`, '\x1b[0m', queueGameDetails);
 
 
         // Get game info
@@ -264,7 +272,7 @@ while (true) {
             const item = queueGameDetails[0];
 
             if (gamesById[item]) {
-                queueFromFile.shift();
+                queueGameDetails.shift();
             } else {
 
                 let url = `https://store.steampowered.com/app/${item}`;
@@ -273,37 +281,50 @@ while (true) {
 
                 const extractedGameInfo = await extractGameInformationFromGameId(item).catch(err => console.log('\x1b[31m', `\t${item} produced and error!`, '\x1b[0m', err));
 
-                console.log(extractedGameInfo);
+                // console.log(extractedGameInfo);
                 if (extractedGameInfo !== null) {
                     games.push(extractedGameInfo);
                     
-                    console.log('\x1b[34m', `Application \'${extractedGameInfo.name}\' (id: ${extractedGameInfo.id}) was successfully saved!, '\x1b[0m'`)
+                    if (item.id) {
+                        gamesById[item.id] = item.name;
+                    }
+                    await saveToFile({gamesById: gamesById}, 'savedGamesById');
+
+                    console.log('\x1b[36m', `Application `, '\x1b[32m', `\'${extractedGameInfo.name}\' `, '\x1b[36m', `(`, '\x1b[0m', `id: `, '\x1b[32m', `${extractedGameInfo.id}`, '\x1b[36m', `) was successfully saved!`, '\x1b[0m');
                 }
 
                 queueGameDetails.shift();
                 // saveToFile({queueGameDetails}, 'steamAppQueue');
             }
 
+            await saveToFile({games}, 'savedGamesInfo');
+
+            games.forEach(item => {
+                // console.log(item);
+                if (item.id) {
+                    gamesById[item.id] = item.name;
+                }
+            });
+            await saveToFile({gamesById: gamesById}, 'savedGamesById');
+
             await sleep(1200);
         };
+        
         console.log('\x1b[90m', 'Aquired game info...');
-        saveToFile({games}, 'savedGamesInfo');
-
-        games.forEach(item => {
-            console.log(item);
-            if (item.id) {
-                gamesById[item.id] = item.name;
-            }
-        });
-        await saveToFile({gamesById: gamesById}, 'savedGamesById');
 
         console.log(`Games: `, games, `gamesById: `, gamesById);
 
+        }
     } catch (err) {
         console.error('Error in execution...', err);
     } 
     finally {
         await browser?.close().catch(err => console.log(err));
     }
+
+
+    console.log('\x1b[35m', 'Taking a break -w- ...', '\x1b[0m');
+
+    await sleep(30000);
 }
 })();
